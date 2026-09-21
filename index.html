@@ -51,7 +51,7 @@ url('https://images.unsplash.com/photo-1598935898639-8156bfc0a7c7?auto=format&fi
 .accord{border:1px solid var(--line);border-radius:15px;margin-bottom:10px;overflow:hidden;background:white}.accord>button{width:100%;text-align:left;background:#fff;padding:13px;font-weight:800;color:var(--ink)}.accord-body{padding:0 13px 13px}
 .toolgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tool{padding:17px;background:white;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);text-align:left}.tool .big{font-size:27px}.tool b{display:block;margin-top:8px}.tool small{color:var(--muted)}
 .weather{background:linear-gradient(135deg,#dff1f3,#fffaf2);padding:18px;border-radius:20px}.weather .temp{font-size:38px;font-weight:800}
-.notice{font-size:11px;line-height:1.6;background:#fff8e9;border-left:4px solid #d9ad69;padding:10px;border-radius:9px;color:#765f38}
+.notice{font-size:11px;line-height:1.6;background:#fff8e9;border-left:4px solid #d9ad69;padding:10px;border-radius:99px;color:#765f38}
 .toast{position:fixed;z-index:50;left:50%;bottom:95px;transform:translateX(-50%);background:#244052;color:white;padding:10px 15px;border-radius:999px;font-size:12px;opacity:0;pointer-events:none;transition:.25s}.toast.show{opacity:1}
 .mapbox{height:210px;border-radius:16px;background:linear-gradient(135deg,#e5f0ec,#f9f4e8);position:relative;overflow:hidden;border:1px solid var(--line)}.mapline{position:absolute;width:120%;height:2px;background:#a9c9c8;transform:rotate(-18deg);top:100px;left:-20px}.pin{position:absolute;font-size:25px}
 @media(min-width:600px){body{padding:20px}.app{box-shadow:0 0 40px rgba(36,64,82,.12);border-radius:30px;overflow:hidden}}
@@ -135,208 +135,264 @@ url('https://images.unsplash.com/photo-1598935898639-8156bfc0a7c7?auto=format&fi
 </div>
 <div id="toast" class="toast">已儲存</div>
 
-<script>
-const RATE_KEY='busan_rate';
-let rate=parseFloat(localStorage.getItem(RATE_KEY)||'0.0235');
-const people=['瑾','琦','樺','胤'];
-const colors=['#6b9eab','#d48b87','#9a9e6b','#a17c9b'];
+<!-- ⚠️ 引入 Firebase SDK (使用 Module 載入) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// 可編輯的行程資料庫：每個行程都附韓文、地址、營業時間與說明。
-const days={
-'10/8':{dow:'四',title:'抵達釜山・飯店・燒烤',events:[
-['16:40','✈️','桃園機場第一航廈起飛','타오위안 국제공항 제1터미널'],
-['19:55','🛬','抵達釜山金海機場','김해국제공항｜PUS'],
-['20:30','🏨','拉梅爾飯店','라메르호텔｜부산광역시 동구 조방로34번길 9'],
-['21:30','🥩','Kosonglong 本店','코소롱 본점｜부산 동구 조방로 39-11']
-]},
-'10/9':{dow:'五',title:'松島・影島・南浦洞',events:[
-['09:30','🚕','出發：計程車','송도해상케이블카 송도베이스테이션｜約 11,500 KRW'],
-['10:00','🚡','松島海上纜車','송도해상케이블카｜Busan PASS 藍色'],
-['11:00','🌉','松島龍宮雲橋','송도용궁구름다리｜Busan PASS 藍色'],
-['13:00','🦪','海底貝殼王國','바닷속 조개왕국｜現烤扇貝、大蛤蜊、烤長灘鰻魚'],
-['15:00','🎨','ARTE MUSEUM BUSAN','아르떼뮤지엄 부산｜影島'],
-['17:00','🛍️','BIFF 廣場 → 光復路 → 樂天百貨光復店 → 南浦地下街','BIFF 광장 → 광복로패션거리 → 롯데백화점 광복점 → 남포지하도상가'],
-['21:00','🏨','返回飯店','범일역｜地鐵 1 號線；戰利品多可搭計程車']
-]},
-'10/10':{dow:'六',title:'西面購物日',events:[
-['09:00','🍙','凡一站飯捲早餐','범일역｜附近飯捲店可依當日營業狀況選擇'],
-['10:15','🛍️','西面地下街','서면지하도상가'],
-['11:00','🏬','樂天百貨釜山本店','롯데백화점 부산본점'],
-['11:45','🥜','核桃家 西面店','호두가 서면점'],
-['12:00','🥩','烤肉的男子 西面店','고기굽는남자 서면점'],
-['13:30','🛒','DAISO 釜山西面2號店','다이소 부산서면2호점'],
-['14:50','👟','Chaakan Shoes 西面店','착한구두 서면점'],
-['17:00','🍕','李在模披薩 西面中央店','이재모피자 서면중앙점'],
-['18:45','🛒','E-mart 門峴店','이마트 문현점']
-]},
-'10/11':{dow:'日',title:'換飯店・海岸列車・機張・滑車・Outlet',events:[
-['09:00','🏨','原飯店退房','라메르호텔'],
-['09:30','🧳','Hotel Society Haeundae 寄放行李','호텔 소사이어티 해운대'],
-['09:40','🚕','前往尾浦站','미포정거장 Mipo｜計程車約 5–10 分鐘'],
-['10:00','🚃','海雲台海岸列車：尾浦 → 青沙浦','해운대 해변열차｜미포정거장 → 청사포정거장'],
-['10:30','📸','青沙浦站','청사포정거장｜灌籃高手平交道'],
-['11:20','🌊','青沙浦踏石觀景台','청사포 다릿돌전망대'],
-['12:10','🚃','海岸列車：青沙浦 → 松亭','청사포정거장 → 송정정거장'],
-['13:00','🚕','前往機張市場','기장시장｜計程車約 15–20 分鐘'],
-['13:20','🦀','機張市場','기장시장｜大螃蟹、海鮮午餐'],
-['15:00','🚕','前往 Skyline Luge Busan','스카이라인 루지 부산'],
-['15:15','🏎️','Skyline Luge','스카이라인 루지 부산｜約 2.4 km 滑車體驗'],
-['17:10','🛍️','樂天 Premium Outlet 東釜山','롯데 프리미엄 아울렛 동부산점'],
-['19:00','🚕','前往海雲台商圈','해운대 구남로｜約 30–40 分鐘'],
-['19:40','🍜','海雲台商圈晚餐＋逛街','해운대 구남로'],
-['21:30','🏨','返回 Hotel Society Haeundae','호텔 소사이어티 해운대｜取回／整理行李']
-]},
-'10/12':{dow:'一',title:'海雲台散步・海理團路・遊艇',events:[
-['08:00','🍲','水邊最高豬肉湯飯 海雲台店','수변최고돼지국밥 해운대점'],
-['09:15','🌊','海雲台沙灘 → 冬柏島木棧道','해운대해수욕장 → 동백섬'],
-['11:30','☕','海理團路','해리단길｜老宅咖啡、服飾、雜貨'],
-['12:00','🍽️','午餐：鮑魚粥＋烤章魚','전복죽 + 문어구이｜可依現場選擇'],
-['17:30','🚕','前往龍湖灣郵輪碼頭','용호만유람선터미널｜鑽石灣遊艇'],
-['18:30','🎫','鑽石灣報到','DIAMOND BAY｜護照申報'],
-['19:30','🛥️','鑽石灣遊艇','다이아몬드베이｜約 50 分鐘'],
-['20:50','🍢','海雲台傳統市場宵夜','해운대전통시장']
-]},
-'10/13':{dow:'二',title:'最後一天・午餐・自由活動・機場',events:[
-['12:00','🏨','退房・寄放行李','호텔 소사이어티 해운대'],
-['12:00','🍲','密陽血腸豬肉湯飯 海雲台店','밀양순대돼지국밥 해운대점'],
-['13:30','🛍️','各自逛逛','해운대｜自由活動、咖啡廳、最後購物'],
-['17:30','🧳','回飯店取行李','호텔 소사이어티 해운대'],
-['18:00','🚕','前往釜山金海機場','김해국제공항｜計程車約 1 小時'],
-['22:25','✈️','釜山金海機場起飛','김해국제공항｜ZE987 PUS → TPE'],
-['00:15','🏠','抵達桃園','타오위안 국제공항｜10/14']
-]}
+  // ----------------------------------------------------
+  // ⚠️ 請把你在 Firebase 複製的 firebaseConfig 貼在下方 ⚠️
+  // ----------------------------------------------------
+const firebaseConfig = {
+  apiKey: "AIzaSyCR7qP478hZW6S1UaISr0KsIWoZ3Osba4k",
+  authDomain: "busan-34f74.firebaseapp.com",
+  projectId: "busan-34f74",
+  storageBucket: "busan-34f74.firebasestorage.app",
+  messagingSenderId: "76770118877",
+  appId: "1:76770118877:web:07b25801ac7451da0ddf34",
+  measurementId: "G-VKH4L6CGY1"
 };
+  // 初始化 Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const docRef = doc(db, "busanTrip", "sharedData");
 
-const details={
-'桃園機場第一航廈起飛':{ko:'타오위안 국제공항 제1터미널',addr:'桃園國際機場第一航廈',hours:'依航班',desc:'IT606 虎航飛往釜山。建議起飛前 3 小時抵達機場。'},
-'抵達釜山金海機場':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'24小時機場｜依航班服務',desc:'釜山金海國際機場 PUS。'},
-'拉梅爾飯店':{ko:'라메르호텔',addr:'부산광역시 동구 조방로34번길 9',hours:'24小時櫃檯（依飯店公告）',desc:'第一段住宿飯店，位於凡一一帶。'},
-'Kosonglong 本店':{ko:'코소롱 본점',addr:'부산 동구 조방로 39-11',hours:'依店家當日公告',desc:'第一晚安排的燒烤餐廳。'},
-'松島海上纜車':{ko:'송도해상케이블카',addr:'부산광역시 서구 송도해변로 171',hours:'依官方當日公告',desc:'跨越松島海灣的海上纜車。'},
-'松島龍宮雲橋':{ko:'송도용궁구름다리',addr:'부산광역시 서구 암남동 산193-4 일원',hours:'依官方當日公告',desc:'松島海岸景觀步道與海上吊橋。'},
-'海底貝殼王國':{ko:'바닷속 조개왕국',addr:'松島站周邊｜請以 Naver Map 當日店家結果為準',hours:'依店家當日公告',desc:'主打現烤扇貝、大蛤蜊等海鮮。'},
-'ARTE MUSEUM BUSAN':{ko:'아르떼뮤지엄 부산',addr:'부산광역시 영도구 해양로247번길 29',hours:'10:00–20:00｜最後入場 19:00',desc:'影島沉浸式媒體藝術館。'},
-'BIFF 廣場 → 光復路 → 樂天百貨光復店 → 南浦地下街':{ko:'BIFF 광장 / 광복로패션거리 / 롯데백화점 광복점 / 남포지하도상가',addr:'釜山南浦洞一帶',hours:'各店依當日公告',desc:'南浦洞購物散步路線。'},
-'西面地下街':{ko:'서면지하도상가',addr:'부산광역시 부산진구 중앙대로 730 일원',hours:'通常約 10:00–22:00｜依店家',desc:'西面地鐵站地下商圈。'},
-'樂天百貨釜山本店':{ko:'롯데백화점 부산본점',addr:'부산광역시 부산진구 가야대로 772',hours:'通常 10:30–20:00｜依百貨公告',desc:'西面大型百貨。'},
-'核桃家 西面店':{ko:'호두가 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'韓國核桃點心伴手禮。'},
-'烤肉的男子 西面店':{ko:'고기굽는남자 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'西面烤肉餐廳。'},
-'DAISO 釜山西面2號店':{ko:'다이소 부산서면2호점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'生活雜貨與旅行用品採買。'},
-'Chaakan Shoes 西面店':{ko:'착한구두 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'韓國鞋履品牌。'},
-'李在模披薩 西面中央店':{ko:'이재모피자 서면중앙점',addr:'부산 부산진구 전포동 일대｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'熱門披薩店，建議提早取號。'},
-'E-mart 門峴店':{ko:'이마트 문현점',addr:'부산광역시 남구 전포대로91번길 47',hours:'依官方公告',desc:'大型超市，可採買零食與伴手禮。'},
-'Hotel Society Haeundae 寄放行李':{ko:'호텔 소사이어티 해운대',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依飯店公告',desc:'第二段住宿飯店。'},
-'前往尾浦站':{ko:'미포정거장',addr:'海雲台尾浦站',hours:'依海岸列車營運時間',desc:'海雲台海岸列車起點。'},
-'海雲台海岸列車：尾浦 → 青沙浦':{ko:'해운대 해변열차',addr:'미포정거장 → 청사포정거장',hours:'依季節與班次',desc:'沿海岸線行駛的觀光列車，建議預約。'},
-'青沙浦站':{ko:'청사포정거장',addr:'부산광역시 해운대구 청사포로 116',hours:'依海岸列車班次',desc:'青沙浦海岸列車站，附近有熱門拍照點。'},
-'青沙浦踏石觀景台':{ko:'청사포 다릿돌전망대',addr:'부산광역시 해운대구 중동 산3-9 일원',hours:'依官方公告及天候',desc:'透明海上觀景台。'},
-'海岸列車：青沙浦 → 松亭':{ko:'해운대 해변열차',addr:'청사포정거장 → 송정정거장',hours:'依季節與班次',desc:'海岸線列車。'},
-'機張市場':{ko:'기장시장',addr:'부산광역시 기장군 기장읍 읍내로104번길 16',hours:'各店不同',desc:'機張海鮮與螃蟹市場。'},
-'Skyline Luge':{ko:'스카이라인 루지 부산',addr:'부산광역시 기장군 기장읍 기장해안로 205',hours:'依官方當日公告',desc:'Osiria 區域戶外滑車體驗。'},
-'樂天 Premium Outlet 東釜山':{ko:'롯데 프리미엄 아울렛 동부산점',addr:'부산광역시 기장군 기장읍 기장해안로 147',hours:'依官方公告',desc:'東釜山大型 Outlet。'},
-'海雲台商圈晚餐＋逛街':{ko:'해운대 구남로',addr:'부산광역시 해운대구 구남로 일대',hours:'各店不同',desc:'海雲台主要夜間逛街與餐飲區。'},
-'水邊最高豬肉湯飯 海雲台店':{ko:'수변최고돼지국밥 해운대점',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'釜山代表性豬肉湯飯。'},
-'海雲台沙灘 → 冬柏島木棧道':{ko:'해운대해수욕장 / 동백섬',addr:'부산광역시 해운대구 해운대해변로 일대',hours:'戶外景點',desc:'海灘與冬柏島散步路線。'},
-'海理團路':{ko:'해리단길',addr:'부산광역시 해운대구 우동 일대',hours:'各店不同',desc:'老宅改建的咖啡、服飾與雜貨街區。'},
-'前往龍湖灣郵輪碼頭':{ko:'용호만유람선터미널',addr:'부산광역시 남구 분포로 66-40',hours:'依遊艇班次',desc:'鑽石灣遊艇碼頭。'},
-'鑽石灣報到':{ko:'다이아몬드베이',addr:'용호만유람선터미널',hours:'依航班／遊艇班次',desc:'出示護照辦理乘船手續。'},
-'鑽石灣遊艇':{ko:'다이아몬드베이',addr:'용호만유람선터미널',hours:'依船班',desc:'約 50 分鐘海上遊艇航程。'},
-'海雲台傳統市場宵夜':{ko:'해운대전통시장',addr:'부산광역시 해운대구 구남로41번길 22-1 일대',hours:'各店不同',desc:'海雲台夜間美食集中地。'},
-'密陽血腸豬肉湯飯 海雲台店':{ko:'밀양순대돼지국밥 해운대점',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'血腸與豬肉湯飯。'},
-'前往釜山金海機場':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'依航班',desc:'建議國際線至少提前 3 小時抵達。'},
-'釜山金海機場起飛':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'依航班',desc:'ZE987 PUS → TPE。'},
-'各自逛逛':{ko:'해운대 일대',addr:'海雲台商圈',hours:'各店不同',desc:'最後自由活動。'}
-};
+  // 全域變數定義
+  const RATE_KEY='busan_rate';
+  window.rate=parseFloat(localStorage.getItem(RATE_KEY)||'0.0235');
+  window.people=['瑾','琦','樺','胤'];
+  window.colors=['#6b9eab','#d48b87','#9a9e6b','#a17c9b'];
 
-let currentDay='10/8';
-let expenses=JSON.parse(localStorage.getItem('busan_expenses')||'[]');
-let splitData=JSON.parse(localStorage.getItem('busan_split')||'null')||{fund:people.map(p=>({p,a:0,c:'TWD'})),items:[],prepaid:[]};
+  // 預設行程資料
+  window.days={
+  '10/8':{dow:'四',title:'抵達釜山・飯店・燒烤',events:[
+  ['16:40','✈️','桃園機場第一航廈起飛','타오위안 국제공항 제1터미널'],
+  ['19:55','🛬','抵達釜山金海機場','김해국제공항｜PUS'],
+  ['20:30','🏨','拉梅爾飯店','라메르호텔｜부산광역시 동구 조방로34번길 9'],
+  ['21:30','🥩','Kosonglong 本店','코소롱 본점｜부산 동구 조방로 39-11']
+  ]},
+  '10/9':{dow:'五',title:'松島・影島・南浦洞',events:[
+  ['09:30','🚕','出發：計程車','송도해상케이블카 송도베이스테이션｜約 11,500 KRW'],
+  ['10:00','🚡','松島海上纜車','송도해상케이블카｜Busan PASS 藍色'],
+  ['11:00','🌉','松島龍宮雲橋','송도용궁구름다리｜Busan PASS 藍色'],
+  ['13:00','🦪','海底貝殼王國','바닷속 조개왕국｜現烤扇貝、大蛤蜊、烤長灘鰻魚'],
+  ['15:00','🎨','ARTE MUSEUM BUSAN','아르떼뮤지엄 부산｜影島'],
+  ['17:00','🛍️','BIFF 廣場 → 光復路 → 樂天百貨光復店 → 南浦地下街','BIFF 광장 → 광복로패션거리 → 롯데백화점 광복점 → 남포지하도상가'],
+  ['21:00','🏨','返回飯店','범일역｜地鐵 1 號線；戰利品多可搭計程車']
+  ]},
+  '10/10':{dow:'六',title:'西面購物日',events:[
+  ['09:00','🍙','凡一站飯捲早餐','범일역｜附近飯捲店可依當日營業狀況選擇'],
+  ['10:15','🛍️','西面地下街','서면지하도상가'],
+  ['11:00','🏬','樂天百貨釜山本店','롯데백화점 부산본점'],
+  ['11:45','🥜','核桃家 西面店','호두가 서면점'],
+  ['12:00','🥩','烤肉的男子 西面店','고기굽는남자 서면점'],
+  ['13:30','🛒','DAISO 釜山西面2號店','다이소 부산서면2호점'],
+  ['14:50','👟','Chaakan Shoes 西面店','착한구두 서면점'],
+  ['17:00','🍕','李在模披薩 西面中央店','이재모피자 서면중앙점'],
+  ['18:45','🛒','E-mart 門峴店','이마트 문현점']
+  ]},
+  '10/11':{dow:'日',title:'換飯店・海岸列車・機張・滑車・Outlet',events:[
+  ['09:00','🏨','原飯店退房','라메르호텔'],
+  ['09:30','🧳','Hotel Society Haeundae 寄放行李','호텔 소사이어티 해운대'],
+  ['09:40','🚕','前往尾浦站','미포정거장 Mipo｜計程車約 5–10 分鐘'],
+  ['10:00','🚃','海雲台海岸列車：尾浦 → 青沙浦','해운대 해변열차｜미포정거장 → 청사포정거장'],
+  ['10:30','📸','青沙浦站','청사포정거장｜灌籃高手平交道'],
+  ['11:20','🌊','青沙浦踏石觀景台','청사포 다릿돌전망대'],
+  ['12:10','🚃','海岸列車：青沙浦 → 松亭','청사포정거장 → 송정정거장'],
+  ['13:00','🚕','前往機張市場','기장시장｜計程車約 15–20 分鐘'],
+  ['13:20','🦀','機張市場','기장시장｜大螃蟹、海鮮午餐'],
+  ['15:00','🚕','前往 Skyline Luge Busan','스카이라인 루지 부산'],
+  ['15:15','🏎️','Skyline Luge','스카이라인 루지 부산｜約 2.4 km 滑車體驗'],
+  ['17:10','🛍️','樂天 Premium Outlet 東釜山','롯데 프리미엄 아울렛 동부산점'],
+  ['19:00','🚕','前往海雲台商圈','해운대 구남로｜約 30–40 分鐘'],
+  ['19:40','🍜','海雲台商圈晚餐＋逛街','해운대 구남로'],
+  ['21:30','🏨','返回 Hotel Society Haeundae','호텔 소사이어티 해운대｜取回／整理行李']
+  ]},
+  '10/12':{dow:'一',title:'海雲台散步・海理團路・遊艇',events:[
+  ['08:00','🍲','水邊最高豬肉湯飯 海雲台店','수변최고돼지국밥 해운대점'],
+  ['09:15','🌊','海雲台沙灘 → 冬柏島木棧道','해운대해수욕장 → 동백섬'],
+  ['11:30','☕','海理團路','해리단길｜老宅咖啡、服飾、雜貨'],
+  ['12:00','🍽️','午餐：鮑魚粥＋烤章魚','전복죽 + 문어구이｜可依現場選擇'],
+  ['17:30','🚕','前往龍湖灣郵輪碼頭','용호만유람선터미널｜鑽石灣遊艇'],
+  ['18:30','🎫','鑽石灣報到','DIAMOND BAY｜護照申報'],
+  ['19:30','🛥️','鑽石灣遊艇','다이아몬드베이｜約 50 分鐘'],
+  ['20:50','🍢','海雲台傳統市場宵夜','해운대전통시장']
+  ]},
+  '10/13':{dow:'二',title:'最後一天・午餐・自由活動・機場',events:[
+  ['12:00','🏨','退房・寄放行李','호텔 소사이어티 해운대'],
+  ['12:00','🍲','密陽血腸豬肉湯飯 海雲台店','밀양순대돼지국밥 해운대점'],
+  ['13:30','🛍️','各自逛逛','해운대｜自由活動、咖啡廳、最後購物'],
+  ['17:30','🧳','回飯店取行李','호텔 소사이어티 해운대'],
+  ['18:00','🚕','前往釜山金海機場','김해국제공항｜計程車約 1 小時'],
+  ['22:25','✈️','釜山金海機場起飛','김해국제공항｜ZE987 PUS → TPE'],
+  ['00:15','🏠','抵達桃園','타오위안 국제공항｜10/14']
+  ]}
+  };
 
-// 舊版資料相容：將舊的互相轉帳格式自動轉成「誰／內容／付款多少」。
-if(splitData.prepaid) splitData.prepaid=splitData.prepaid.map(x=>({payer:x.payer||x.from||'瑾',desc:x.desc||'',amount:Number(x.amount||0),c:x.c||'TWD'}));
-if(splitData.items) splitData.items=splitData.items.map(x=>({name:x.name||'新支出',total:Number(x.total||0),c:x.c||'TWD',parts:Array.isArray(x.parts)?x.parts:[0,0,0,0],partCurrencies:Array.isArray(x.partCurrencies)?x.partCurrencies:['TWD','TWD','TWD','TWD']}));
+  window.details={
+  '桃園機場第一航廈起飛':{ko:'타오위안 국제공항 제1터미널',addr:'桃園國際機場第一航廈',hours:'依航班',desc:'IT606 虎航飛往釜山。建議起飛前 3 小時抵達機場。'},
+  '抵達釜山金海機場':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'24小時機場｜依航班服務',desc:'釜山金海國際機場 PUS。'},
+  '拉梅爾飯店':{ko:'라메르호텔',addr:'부산광역시 동구 조방로34번길 9',hours:'24小時櫃檯（依飯店公告）',desc:'第一段住宿飯店，位於凡一一帶。'},
+  'Kosonglong 本店':{ko:'코소롱 본점',addr:'부산 동구 조방로 39-11',hours:'依店家當日公告',desc:'第一晚安排的燒烤餐廳。'},
+  '松島海上纜車':{ko:'송도해상케이블카',addr:'부산광역시 서구 송도해변로 171',hours:'依官方當日公告',desc:'跨越松島海灣的海上纜車。'},
+  '松島龍宮雲橋':{ko:'송도용궁구름다리',addr:'부산광역시 서구 암남동 산193-4 일원',hours:'依官方當日公告',desc:'松島海岸景觀步道與海上吊橋。'},
+  '海底貝殼王國':{ko:'바닷속 조개왕국',addr:'松島站周邊｜請以 Naver Map 當日店家結果為準',hours:'依店家當日公告',desc:'主打現烤扇貝、大蛤蜊等海鮮。'},
+  'ARTE MUSEUM BUSAN':{ko:'아르떼뮤지엄 부산',addr:'부산광역시 영도구 해양로247번길 29',hours:'10:00–20:00｜最後入場 19:00',desc:'影島沉浸式媒體藝術館。'},
+  'BIFF 廣場 → 光復路 → 樂天百貨光復店 → 南浦地下街':{ko:'BIFF 광장 / 광복로패션거리 / 롯데백화점 광복점 / 남포지하도상가',addr:'釜山南浦洞一帶',hours:'各店依當日公告',desc:'南浦洞購物散步路線。'},
+  '西面地下街':{ko:'서면지하도상가',addr:'부산광역시 부산진구 중앙대로 730 일원',hours:'通常約 10:00–22:00｜依店家',desc:'西面地鐵站地下商圈。'},
+  '樂天百貨釜山本店':{ko:'롯데백화점 부산본점',addr:'부산광역시 부산진구 가야대로 772',hours:'通常 10:30–20:00｜依百貨公告',desc:'西面大型百貨。'},
+  '核桃家 西面店':{ko:'호두가 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'韓國核桃點心伴手禮。'},
+  '烤肉的男子 西面店':{ko:'고기굽는남자 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'西面烤肉餐廳。'},
+  'DAISO 釜山西面2號店':{ko:'다이소 부산서면2호점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'生活雜貨與旅行用品採買。'},
+  'Chaakan Shoes 西面店':{ko:'착한구두 서면점',addr:'西面站周邊｜Naver Map 可直接搜尋',hours:'依店家公告',desc:'韓國鞋履品牌。'},
+  '李在模披薩 西面中央店':{ko:'이재모피자 서면중앙점',addr:'부산 부산진구 전포동 일대｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'熱門披薩店，建議提早取號。'},
+  'E-mart 門峴店':{ko:'이마트 문현점',addr:'부산광역시 남구 전포대로91번길 47',hours:'依官方公告',desc:'大型超市，可採買零食與伴手禮。'},
+  'Hotel Society Haeundae 寄放行李':{ko:'호텔 소사이어티 해운대',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依飯店公告',desc:'第二段住宿飯店。'},
+  '前往尾浦站':{ko:'미포정거장',addr:'海雲台尾浦站',hours:'依海岸列車營運時間',desc:'海雲台海岸列車起點。'},
+  '海雲台海岸列車：尾浦 → 青沙浦':{ko:'해운대 해변열차',addr:'미포정거장 → 청사포정거장',hours:'依季節與班次',desc:'沿海岸線行駛的觀光列車，建議預約。'},
+  '青沙浦站':{ko:'청사포정거장',addr:'부산광역시 해운대구 청사포로 116',hours:'依海岸列車班次',desc:'青沙浦海岸列車站，附近有熱門拍照點。'},
+  '青沙浦踏石觀景台':{ko:'청사포 다릿돌전망대',addr:'부산광역시 해운대구 중동 산3-9 일원',hours:'依官方公告及天候',desc:'透明海上觀景台。'},
+  '海岸列車：青沙浦 → 松亭':{ko:'해운대 해변열차',addr:'청사포정거장 → 송정정거장',hours:'依季節與班次',desc:'海岸線列車。'},
+  '機張市場':{ko:'기장시장',addr:'부산광역시 기장군 기장읍 읍내로104번길 16',hours:'各店不同',desc:'機張海鮮與螃蟹市場。'},
+  'Skyline Luge':{ko:'스카이라인 루지 부산',addr:'부산광역시 기장군 기장읍 기장해안로 205',hours:'依官方當日公告',desc:'Osiria 區域戶外滑車體驗。'},
+  '樂天 Premium Outlet 東釜山':{ko:'롯데 프리미엄 아울렛 동부산점',addr:'부산광역시 기장군 기장읍 기장해안로 147',hours:'依官方公告',desc:'東釜山大型 Outlet。'},
+  '海雲台商圈晚餐＋逛街':{ko:'해운대 구남로',addr:'부산광역시 해운대구 구남로 일대',hours:'各店不同',desc:'海雲台主要夜間逛街與餐飲區。'},
+  '水邊最高豬肉湯飯 海雲台店':{ko:'수변최고돼지국밥 해운대점',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'釜山代表性豬肉湯飯。'},
+  '海雲台沙灘 → 冬柏島木棧道':{ko:'해운대해수욕장 / 동백섬',addr:'부산광역시 해운대구 해운대해변로 일대',hours:'戶外景點',desc:'海灘與冬柏島散步路線。'},
+  '海理團路':{ko:'해리단길',addr:'부산광역시 해운대구 우동 일대',hours:'各店不同',desc:'老宅改建的咖啡、服飾與雜貨街區。'},
+  '前往龍湖灣郵輪碼頭':{ko:'용호만유람선터미널',addr:'부산광역시 남구 분포로 66-40',hours:'依遊艇班次',desc:'鑽石灣遊艇碼頭。'},
+  '鑽石灣報到':{ko:'다이아몬드베이',addr:'용호만유람선터미널',hours:'依航班／遊艇班次',desc:'出示護照辦理乘船手續。'},
+  '鑽石灣遊艇':{ko:'다이아몬드베이',addr:'용호만유람선터미널',hours:'依船班',desc:'約 50 分鐘海上遊艇航程。'},
+  '海雲台傳統市場宵夜':{ko:'해운대전통시장',addr:'부산광역시 해운대구 구남로41번길 22-1 일대',hours:'各店不同',desc:'海雲台夜間美食集中地。'},
+  '密陽血腸豬肉湯飯 海雲台店':{ko:'밀양순대돼지국밥 해운대점',addr:'海雲台站周邊｜請以 Naver Map 當日結果為準',hours:'依店家公告',desc:'血腸與豬肉湯飯。'},
+  '前往釜山金海機場':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'依航班',desc:'建議國際線至少提前 3 小時抵達。'},
+  '釜山金海機場起飛':{ko:'김해국제공항',addr:'부산광역시 강서구 공항진입로 108',hours:'依航班',desc:'ZE987 PUS → TPE。'},
+  '各自逛逛':{ko:'해운대 일대',addr:'海雲台商圈',hours:'各店不同',desc:'最後自由活動。'}
+  };
 
-function toast(t='已儲存'){const x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1200)}
-function showTab(id){
- document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
- if(id==='home'){window.scrollTo({top:0,behavior:'smooth'});document.getElementById('homeHero').scrollIntoView({behavior:'smooth'});document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('active'));return}
- document.getElementById(id).classList.add('active');document.querySelectorAll('.bottom button').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));window.scrollTo({top:0,behavior:'smooth'});
- if(id==='itinerary')renderDays();if(id==='ledger')renderExpenses();if(id==='split')renderSplit();if(id==='tools')calcRate();
-}
-function escapeHtml(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')}
-function eventDetail(e){
- const name=e[2];const d=details[name]||{ko:e[3]?.split('｜')[0]||name,addr:'請以 Naver Map 搜尋結果為準',hours:'依官方／店家公告',desc:e[3]||'可編輯行程'};return d;
-}
-function renderDays(){
- const db=document.getElementById('datebar');db.innerHTML='';
- Object.keys(days).forEach(d=>{let b=document.createElement('button');b.className='datebtn '+(d===currentDay?'active':'');b.innerHTML=`<b>${d}</b><br>${days[d].dow}`;b.onclick=()=>{currentDay=d;renderDays()};db.appendChild(b)});
- const d=days[currentDay];let html=`<div class="card"><span class="badge">${currentDay}（${d.dow}）</span><h2 style="margin-top:8px">${escapeHtml(d.title)}</h2><div class="field"><button class="btn light small" onclick="editDayTitle()">✏️ 編輯本日</button><button class="btn light small" onclick="addEvent()">＋新增行程</button></div></div><div class="timeline">`;
- d.events.forEach((e,i)=>{html+=`<div class="event"><div class="t">${escapeHtml(e[0])}</div><div class="dot"></div><div class="event-card"><strong>${escapeHtml(e[1])} ${escapeHtml(e[2])}</strong><small>${escapeHtml(e[3])}</small><button onclick="openDetail(${i})">查看詳細資料 ›</button></div></div>`});
- html+=`</div>${recommendation(currentDay)}<div class="card"><button class="btn" onclick="addEvent()">＋ 新增今天的行程</button></div>`;
- document.getElementById('dayView').innerHTML=html;
-}
-function recommendation(day){
- const data={
-'10/8':[['🍺','釜山烤肉＋在地啤酒','抵達日輕鬆吃','https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80']],
-'10/9':[['🥞','堅果黑糖甜餅','BIFF 廣場必吃','https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=500&q=80'],['🦈','Baby Shark 周邊','樂天百貨光復店','https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=500&q=80']],
-'10/10':[['🍕','李在模披薩','建議 17:00 左右取號','https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=500&q=80'],['🛍️','西面地下街','逛街＋鞋包','https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=500&q=80']],
-'10/11':[['🦀','機張大螃蟹','留足 100 分鐘用餐','https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=500&q=80'],['🛒','樂天 Outlet','東釜山購物','https://images.unsplash.com/photo-1607082348824-0a96f2a9b9e7?auto=format&fit=crop&w=500&q=80']],
-'10/12':[['☕','海理團路咖啡','老宅咖啡散步','https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=500&q=80'],['🌊','冬柏島','早晨海風散步','https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=500&q=80']],
-'10/13':[['🎁','最後伴手禮','自由活動時採買','https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80'],['☕','海雲台咖啡','搭機前最後一杯','https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=500&q=80']]}[day]||[];
- return `<div class="card"><h3>✨ 今日推薦</h3><div class="hscroll">${data.map(x=>`<div class="rec"><img src="${x[3]}" loading="lazy"><div><b>${x[0]} ${escapeHtml(x[1])}</b><small>${escapeHtml(x[2])}</small><button class="btn light small" style="margin-top:7px" onclick="googleSearch('${escapeHtml(x[1])} 釜山')">Google 搜尋</button></div></div>`).join('')}</div></div>`;
-}
-function openDetail(index){
- const e=days[currentDay].events[index];const x=eventDetail(e);const name=e[2];
- const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><span class="badge">景點詳細</span><h2 style="margin-top:8px">${escapeHtml(name)}</h2><p><b>🇰🇷 韓文</b><br>${escapeHtml(x.ko)}</p><p><b>📍 地址</b><br>${escapeHtml(x.addr)}</p><p><b>🕐 營業時間</b><br>${escapeHtml(x.hours)}</p><p><b>💡 簡介</b><br>${escapeHtml(x.desc)}</p><div class="field"><button class="btn" onclick="naverSearch('${escapeHtml(x.ko)}')">🗺 Naver Map 導航</button><button class="btn light" onclick="googleSearch('${escapeHtml(x.ko)}')">Google 地圖</button></div><div class="field"><button class="btn light" onclick="this.closest('.modalWrap').remove();editEvent(${index})">✏️ 編輯這筆行程</button><button class="btn danger small" onclick="this.closest('.modalWrap').remove();deleteEvent(${index})">刪除行程</button></div></div>`;document.body.appendChild(box);
-}
-function naverSearch(q){window.open('https://map.naver.com/p/search/'+encodeURIComponent(q),'_blank')}
-function googleSearch(q){window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q),'_blank')}
-function editDayTitle(){
- const d=days[currentDay];const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><h2>編輯 ${currentDay}</h2><label>本日標題</label><input id="dayTitleEdit" value="${escapeHtml(d.title)}"><div class="field"><button class="btn" onclick="days[currentDay].title=document.getElementById('dayTitleEdit').value||'今日行程';saveDays();this.closest('.modalWrap').remove();renderDays()">儲存</button></div></div>`;document.body.appendChild(box);
-}
-function editEvent(index){
- const e=days[currentDay].events[index],x=eventDetail(e);eventEditor(index,e,x);
-}
-function addEvent(){eventEditor(-1,['10:00','📍','新行程','',''],{ko:'',addr:'',hours:'',desc:''})}
-function eventEditor(index,e,x){
- const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><span class="badge">${index<0?'新增':'編輯'}行程</span><div class="editGrid"><label>時間<input id="edTime" value="${escapeHtml(e[0])}"></label><label>圖示<input id="edIcon" value="${escapeHtml(e[1])}"></label><label class="full">中文名稱<input id="edName" value="${escapeHtml(e[2])}"></label><label class="full">🇰🇷 韓文名稱<input id="edKo" value="${escapeHtml(x.ko)}"></label><label class="full">📍 地址<input id="edAddr" value="${escapeHtml(x.addr)}"></label><label class="full">🕐 營業時間<input id="edHours" value="${escapeHtml(x.hours)}"></label><label class="full">💡 詳細／交通／備註<textarea id="edDesc">${escapeHtml(x.desc||e[3]||'')}</textarea></label></div><div class="field"><button class="btn" onclick="saveEvent(${index})">💾 儲存</button>${index>=0?`<button class="btn danger" onclick="this.closest('.modalWrap').remove();deleteEvent(${index})">刪除</button>`:''}</div></div>`;document.body.appendChild(box);
-}
-function saveEvent(index){const e=[document.getElementById('edTime').value,document.getElementById('edIcon').value,document.getElementById('edName').value,document.getElementById('edKo').value+'｜'+document.getElementById('edAddr').value];const key=e[2];details[key]={ko:document.getElementById('edKo').value,addr:document.getElementById('edAddr').value,hours:document.getElementById('edHours').value,desc:document.getElementById('edDesc').value};if(index<0)days[currentDay].events.push(e);else days[currentDay].events[index]=e;saveDays();document.querySelector('.modalWrap')?.remove();renderDays();toast('行程已儲存')}
-function deleteEvent(index){if(confirm('確定刪除這個行程？')){days[currentDay].events.splice(index,1);saveDays();renderDays();toast('已刪除')}}
-function saveDays(){localStorage.setItem('busan_days',JSON.stringify(days))}
-const savedDays=localStorage.getItem('busan_days');if(savedDays){try{const z=JSON.parse(savedDays);Object.keys(z).forEach(k=>{if(days[k]){days[k].title=z[k].title||days[k].title;days[k].events=z[k].events||days[k].events}})}catch(e){}}
+  window.currentDay='10/8';
+  window.expenses=[];
+  window.splitData={fund:people.map(p=>({p,a:0,c:'TWD'})),items:[],prepaid:[]};
 
-function renderExpenses(){
- const twd=expenses.reduce((s,x)=>s+toTwd(x.a,x.c),0),krw=twd/rate;document.getElementById('ledgerTwd').textContent=Math.round(twd).toLocaleString();document.getElementById('ledgerKrw').textContent=Math.round(krw).toLocaleString();
- document.getElementById('expenseList').innerHTML=expenses.length?expenses.map((x,i)=>`<div class="card"><div style="display:flex;justify-content:space-between"><div><b>${escapeHtml(x.name)}</b><div class="muted">${escapeHtml(x.p)} · ${x.c}</div></div><div style="text-align:right"><b>${Number(x.a).toLocaleString()} ${x.c}</b><br><span class="muted">≈ ${Math.round(toTwd(x.a,x.c)).toLocaleString()} TWD</span><br><button class="btn danger small" onclick="delExpense(${i})">刪除</button></div></div></div>`).join(''):'<div class="card muted">還沒有支出，新增第一筆吧！</div>';
-}
-function addExpense(){let n=document.getElementById('expenseName').value.trim(),a=parseFloat(document.getElementById('expenseAmount').value),c=document.getElementById('expenseCurrency').value,p=document.getElementById('expensePerson').value;if(!n||!a)return toast('請填完整');expenses.push({name:n,a,c,p});localStorage.setItem('busan_expenses',JSON.stringify(expenses));document.getElementById('expenseName').value='';document.getElementById('expenseAmount').value='';renderExpenses();toast('支出已儲存')}
-function delExpense(i){expenses.splice(i,1);localStorage.setItem('busan_expenses',JSON.stringify(expenses));renderExpenses()}
-function toTwd(a,c){return c==='KRW'?Number(a||0)*rate:Number(a||0)}
-function toKrw(a,c){return c==='KRW'?Number(a||0):Number(a||0)/rate}
-function moneyPair(a,c){return `≈ ${Math.round(toTwd(a,c)).toLocaleString()} TWD / ${Math.round(toKrw(a,c)).toLocaleString()} KRW`}
-function renderSplit(){
- const fundT=splitData.fund.reduce((s,x)=>s+toTwd(x.a,x.c),0);let h=`<div class="card"><h3>1. 公基金</h3><div class="summary"><div class="sum"><small>總計 TWD</small><b>${Math.round(fundT).toLocaleString()}</b></div><div class="sum"><small>總計 KRW</small><b>${Math.round(fundT/rate).toLocaleString()}</b></div></div>`;
- splitData.fund.forEach((x,i)=>h+=`<div class="person"><span class="avatar" style="background:${colors[i]}">${x.p}</span><b>${x.p}</b><input type="number" value="${x.a}" onchange="updateFund(${i},this.value)"><select onchange="updateFundC(${i},this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select><small class="muted">${moneyPair(x.a,x.c)}</small></div>`);
- h+=`</div><div class="card"><h3>2. 行程等金額（可調整）</h3><p class="muted">每筆可選台幣／韓幣；每人的分攤也能各自調整。總額會同時換算成 TWD 與 KRW。</p><button class="btn light small" onclick="addSplitItem()">＋新增一筆</button>`;
- let itemT=0;
- splitData.items.forEach((x,i)=>{const shares=x.parts.map((v,j)=>toTwd(v,(x.partCurrencies||[])[j]||'TWD'));const shareT=shares.reduce((a,b)=>a+b,0);itemT+=shareT;h+=`<div class="accord"><button onclick="toggleAcc(this)">📌 ${escapeHtml(x.name||'未命名支出')}｜總分攤 ${Math.round(shareT).toLocaleString()} TWD / ${Math.round(shareT/rate).toLocaleString()} KRW</button><div class="accord-body"><div class="field"><input value="${escapeHtml(x.name)}" placeholder="內容／行程" onchange="updateItem(${i},'name',this.value)"><input type="number" value="${x.total||0}" placeholder="原始總額" onchange="updateItem(${i},'total',this.value)"><select onchange="updateItem(${i},'c',this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select></div><div class="muted" style="margin:7px 0">原始總額：${Number(x.total||0).toLocaleString()} ${x.c}｜${moneyPair(x.total,x.c)}</div>${people.map((p,j)=>{const pc=(x.partCurrencies||[])[j]||'TWD';return `<div class="person"><span class="avatar" style="background:${colors[j]}">${p}</span><b>${p}</b><input type="number" value="${x.parts[j]||0}" onchange="updatePart(${i},${j},this.value)"><select onchange="updatePartC(${i},${j},this.value)"><option ${pc==='TWD'?'selected':''}>TWD</option><option ${pc==='KRW'?'selected':''}>KRW</option></select><small class="muted">${moneyPair(x.parts[j]||0,pc)}</small></div>`}).join('')}<div class="summary"><div class="sum"><small>本筆分攤合計 TWD</small><b>${Math.round(shareT).toLocaleString()}</b></div><div class="sum"><small>本筆分攤合計 KRW</small><b>${Math.round(shareT/rate).toLocaleString()}</b></div></div><button class="btn danger small" onclick="deleteItem(${i})">刪除</button></div></div>`});
- h+=`<div class="summary"><div class="sum"><small>所有行程分攤 TWD</small><b>${Math.round(itemT).toLocaleString()}</b></div><div class="sum"><small>所有行程分攤 KRW</small><b>${Math.round(itemT/rate).toLocaleString()}</b></div></div></div>`;
- h+=`<div class="card"><h3>3. 已墊付／付款紀錄</h3><p class="muted">不再預設「誰 → 誰」。只記錄「誰付款、內容、付款多少」，台幣／韓幣都可選。</p><button class="btn light small" onclick="addPrepaid()">＋新增一筆</button>`;
- let preT=0;splitData.prepaid.forEach((x,i)=>{preT+=toTwd(x.amount,x.c);h+=`<div class="accord"><button onclick="toggleAcc(this)">💳 ${escapeHtml(x.payer||'誰')}｜${escapeHtml(x.desc||'未填內容')}｜${Number(x.amount||0).toLocaleString()} ${x.c}</button><div class="accord-body"><div class="field"><select onchange="updatePre(${i},'payer',this.value)">${people.map(p=>`<option ${p===x.payer?'selected':''}>${p}</option>`).join('')}</select><input value="${escapeHtml(x.desc||'')}" placeholder="內容是什麼？" onchange="updatePre(${i},'desc',this.value)"></div><div class="field"><input type="number" value="${x.amount||0}" placeholder="付款多少" onchange="updatePre(${i},'amount',this.value)"><select onchange="updatePre(${i},'c',this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select><button class="btn danger small" onclick="deletePre(${i})">刪除</button></div><div class="muted">${moneyPair(x.amount,x.c)}</div></div></div>`});
- h+=`<div class="summary"><div class="sum"><small>已墊付合計 TWD</small><b>${Math.round(preT).toLocaleString()}</b></div><div class="sum"><small>已墊付合計 KRW</small><b>${Math.round(preT/rate).toLocaleString()}</b></div></div></div>`;
- document.getElementById('splitContent').innerHTML=h;
-}
-function saveSplit(){localStorage.setItem('busan_split',JSON.stringify(splitData));renderSplit();toast('分帳已儲存')}
-function updateFund(i,v){splitData.fund[i].a=Number(v);saveSplit()}function updateFundC(i,v){splitData.fund[i].c=v;saveSplit()}
-function addSplitItem(){splitData.items.push({name:'新支出',total:0,c:'TWD',parts:[0,0,0,0],partCurrencies:['TWD','TWD','TWD','TWD']});saveSplit()}
-function updateItem(i,k,v){splitData.items[i][k]=k==='total'?Number(v):v;saveSplit()}function updatePart(i,j,v){splitData.items[i].parts[j]=Number(v);saveSplit()}function updatePartC(i,j,v){splitData.items[i].partCurrencies[j]=v;saveSplit()}
-function deleteItem(i){splitData.items.splice(i,1);saveSplit()}
-function addPrepaid(){splitData.prepaid.push({payer:'瑾',desc:'',amount:0,c:'TWD'});saveSplit()}
-function updatePre(i,k,v){splitData.prepaid[i][k]=k==='amount'?Number(v):v;saveSplit()}function deletePre(i){splitData.prepaid.splice(i,1);saveSplit()}
-function toggleAcc(btn){let b=btn.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none'}
-function calcRate(){rate=parseFloat(document.getElementById('rateValue').value)||0.0235;localStorage.setItem(RATE_KEY,rate);document.getElementById('rateTwd').value=((parseFloat(document.getElementById('rateKrw').value)||0)*rate).toFixed(0)+' TWD'}
-document.getElementById('rateValue').value=rate;calcRate();renderDays();renderExpenses();renderSplit();
+  // ⚠️ 數據同步至 Firebase 云端
+  window.saveToFirebase = function() {
+    setDoc(docRef, {
+      days: window.days,
+      details: window.details,
+      expenses: window.expenses,
+      splitData: window.splitData
+    }, { merge: true });
+  };
+
+  // ⚠️ 即時監聽雲端資料庫變更
+  onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (data.days) window.days = data.days;
+      if (data.details) window.details = data.details;
+      if (data.expenses) window.expenses = data.expenses;
+      if (data.splitData) window.splitData = data.splitData;
+      
+      // 自動刷新 UI 介面
+      renderDays();
+      renderExpenses();
+      renderSplit();
+    } else {
+      // 首次使用，將預設值傳上 Firebase
+      window.saveToFirebase();
+    }
+  });
+
+  // UI 互動函數綁定至 window 供頁面使用
+  window.toast = function(t='已儲存'){const x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1200)};
+  window.showTab = function(id){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    if(id==='home'){window.scrollTo({top:0,behavior:'smooth'});document.getElementById('homeHero').scrollIntoView({behavior:'smooth'});document.querySelectorAll('.bottom button').forEach(x=>x.classList.remove('active'));return}
+    document.getElementById(id).classList.add('active');document.querySelectorAll('.bottom button').forEach(x=>x.classList.toggle('active',x.dataset.tab===id));window.scrollTo({top:0,behavior:'smooth'});
+    if(id==='itinerary')renderDays();if(id==='ledger')renderExpenses();if(id==='split')renderSplit();if(id==='tools')calcRate();
+  };
+  window.escapeHtml = function(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;')};
+  window.eventDetail = function(e){
+    const name=e[2];const d=window.details[name]||{ko:e[3]?.split('｜')[0]||name,addr:'請以 Naver Map 搜尋結果為準',hours:'依官方／店家公告',desc:e[3]||'可編輯行程'};return d;
+  };
+  window.renderDays = function(){
+    const db=document.getElementById('datebar');db.innerHTML='';
+    Object.keys(window.days).forEach(d=>{let b=document.createElement('button');b.className='datebtn '+(d===window.currentDay?'active':'');b.innerHTML=`<b>${d}</b><br>${window.days[d].dow}`;b.onclick=()=>{window.currentDay=d;renderDays()};db.appendChild(b)});
+    const d=window.days[window.currentDay];let html=`<div class="card"><span class="badge">${window.currentDay}（${d.dow}）</span><h2 style="margin-top:8px">${escapeHtml(d.title)}</h2><div class="field"><button class="btn light small" onclick="editDayTitle()">✏️ 編輯本日</button><button class="btn light small" onclick="addEvent()">＋新增行程</button></div></div><div class="timeline">`;
+    d.events.forEach((e,i)=>{html+=`<div class="event"><div class="t">${escapeHtml(e[0])}</div><div class="dot"></div><div class="event-card"><strong>${escapeHtml(e[1])} ${escapeHtml(e[2])}</strong><small>${escapeHtml(e[3])}</small><button onclick="openDetail(${i})">查看詳細資料 ›</button></div></div>`});
+    html+=`</div>${recommendation(window.currentDay)}<div class="card"><button class="btn" onclick="addEvent()">＋ 新增今天的行程</button></div>`;
+    document.getElementById('dayView').innerHTML=html;
+  };
+  window.recommendation = function(day){
+    const data={
+    '10/8':[['🍺','釜山烤肉＋在地啤酒','抵達日輕鬆吃','https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80']],
+    '10/9':[['🥞','堅果黑糖甜餅','BIFF 廣場必吃','https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=500&q=80'],['🦈','Baby Shark 周邊','樂天百貨光復店','https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=500&q=80']],
+    '10/10':[['🍕','李在模披薩','建議 17:00 左右取號','https://images.unsplash.com/photo-1574071318508-1cdbab80d002?auto=format&fit=crop&w=500&q=80'],['🛍️','西面地下街','逛街＋鞋包','https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=500&q=80']],
+    '10/11':[['🦀','機張大螃蟹','留足 100 分鐘用餐','https://images.unsplash.com/photo-1559737558-2f5a35f4523b?auto=format&fit=crop&w=500&q=80'],['🛒','樂天 Outlet','東釜山購物','https://images.unsplash.com/photo-1607082348824-0a96f2a9b9e7?auto=format&fit=crop&w=500&q=80']],
+    '10/12':[['☕','海理團路咖啡','老宅咖啡散步','https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?auto=format&fit=crop&w=500&q=80'],['🌊','冬柏島','早晨海風散步','https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=500&q=80']],
+    '10/13':[['🎁','最後伴手禮','自由活動時採買','https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80'],['☕','海雲台咖啡','搭機前最後一杯','https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=500&q=80']}[day]||[];
+    return `<div class="card"><h3>✨ 今日推薦</h3><div class="hscroll">${data.map(x=>`<div class="rec"><img src="${x[3]}" loading="lazy"><div><b>${x[0]} ${escapeHtml(x[1])}</b><small>${escapeHtml(x[2])}</small><button class="btn light small" style="margin-top:7px" onclick="googleSearch('${escapeHtml(x[1])} 釜山')">Google 搜尋</button></div></div>`).join('')}</div></div>`;
+  };
+  window.openDetail = function(index){
+    const e=window.days[window.currentDay].events[index];const x=eventDetail(e);const name=e[2];
+    const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><span class="badge">景點詳細</span><h2 style="margin-top:8px">${escapeHtml(name)}</h2><p><b>🇰🇷 韓文</b><br>${escapeHtml(x.ko)}</p><p><b>📍 地址</b><br>${escapeHtml(x.addr)}</p><p><b>🕐 營業時間</b><br>${escapeHtml(x.hours)}</p><p><b>💡 簡介</b><br>${escapeHtml(x.desc)}</p><div class="field"><button class="btn" onclick="naverSearch('${escapeHtml(x.ko)}')">🗺 Naver Map 導航</button><button class="btn light" onclick="googleSearch('${escapeHtml(x.ko)}')">Google 地圖</button></div><div class="field"><button class="btn light" onclick="this.closest('.modalWrap').remove();editEvent(${index})">✏️ 編輯這筆行程</button><button class="btn danger small" onclick="this.closest('.modalWrap').remove();deleteEvent(${index})">刪除行程</button></div></div>`;document.body.appendChild(box);
+  };
+  window.naverSearch = function(q){window.open('https://map.naver.com/p/search/'+encodeURIComponent(q),'_blank')};
+  window.googleSearch = function(q){window.open('https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q),'_blank')};
+  window.editDayTitle = function(){
+    const d=window.days[window.currentDay];const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><h2>編輯 ${window.currentDay}</h2><label>本日標題</label><input id="dayTitleEdit" value="${escapeHtml(d.title)}"><div class="field"><button class="btn" onclick="window.days[window.currentDay].title=document.getElementById('dayTitleEdit').value||'今日行程';saveDays();this.closest('.modalWrap').remove();renderDays()">儲存</button></div></div>`;document.body.appendChild(box);
+  };
+  window.editEvent = function(index){
+    const e=window.days[window.currentDay].events[index],x=eventDetail(e);eventEditor(index,e,x);
+  };
+  window.addEvent = function(){eventEditor(-1,['10:00','📍','新行程','',''],{ko:'',addr:'',hours:'',desc:''})};
+  window.eventEditor = function(index,e,x){
+    const box=document.createElement('div');box.className='modalWrap';box.innerHTML=`<div class="modal card"><button class="back" onclick="this.closest('.modalWrap').remove()">← 關閉</button><span class="badge">${index<0?'新增':'編輯'}行程</span><div class="editGrid"><label>時間<input id="edTime" value="${escapeHtml(e[0])}"></label><label>圖示<input id="edIcon" value="${escapeHtml(e[1])}"></label><label class="full">中文名稱<input id="edName" value="${escapeHtml(e[2])}"></label><label class="full">🇰🇷 韓文名稱<input id="edKo" value="${escapeHtml(x.ko)}"></label><label class="full">📍 地址<input id="edAddr" value="${escapeHtml(x.addr)}"></label><label class="full">🕐 營業時間<input id="edHours" value="${escapeHtml(x.hours)}"></label><label class="full">💡 詳細／交通／備註<textarea id="edDesc">${escapeHtml(x.desc||e[3]||'')}</textarea></label></div><div class="field"><button class="btn" onclick="saveEvent(${index})">💾 儲存</button>${index>=0?`<button class="btn danger" onclick="this.closest('.modalWrap').remove();deleteEvent(${index})">刪除</button>`:''}</div></div>`;document.body.appendChild(box);
+  };
+  window.saveEvent = function(index){const e=[document.getElementById('edTime').value,document.getElementById('edIcon').value,document.getElementById('edName').value,document.getElementById('edKo').value+'｜'+document.getElementById('edAddr').value];const key=e[2];window.details[key]={ko:document.getElementById('edKo').value,addr:document.getElementById('edAddr').value,hours:document.getElementById('edHours').value,desc:document.getElementById('edDesc').value};if(index<0)window.days[window.currentDay].events.push(e);else window.days[window.currentDay].events[index]=e;saveDays();document.querySelector('.modalWrap')?.remove();renderDays();toast('行程已儲存')};
+  window.deleteEvent = function(index){if(confirm('確定刪除這個行程？')){window.days[window.currentDay].events.splice(index,1);saveDays();renderDays();toast('已刪除')}};
+  window.saveDays = function(){window.saveToFirebase()};
+
+  window.renderExpenses = function(){
+    const twd=window.expenses.reduce((s,x)=>s+toTwd(x.a,x.c),0),krw=twd/window.rate;document.getElementById('ledgerTwd').textContent=Math.round(twd).toLocaleString();document.getElementById('ledgerKrw').textContent=Math.round(krw).toLocaleString();
+    document.getElementById('expenseList').innerHTML=window.expenses.length?window.expenses.map((x,i)=>`<div class="card"><div style="display:flex;justify-content:space-between"><div><b>${escapeHtml(x.name)}</b><div class="muted">${escapeHtml(x.p)} · ${x.c}</div></div><div style="text-align:right"><b>${Number(x.a).toLocaleString()} ${x.c}</b><br><span class="muted">≈ ${Math.round(toTwd(x.a,x.c)).toLocaleString()} TWD</span><br><button class="btn danger small" onclick="delExpense(${i})">刪除</button></div></div></div>`).join(''):'<div class="card muted">還沒有支出，新增第一筆吧！</div>';
+  };
+  window.addExpense = function(){let n=document.getElementById('expenseName').value.trim(),a=parseFloat(document.getElementById('expenseAmount').value),c=document.getElementById('expenseCurrency').value,p=document.getElementById('expensePerson').value;if(!n||!a)return toast('請填完整');window.expenses.push({name:n,a,c,p});window.saveToFirebase();document.getElementById('expenseName').value='';document.getElementById('expenseAmount').value='';renderExpenses();toast('支出已儲存')};
+  window.delExpense = function(i){window.expenses.splice(i,1);window.saveToFirebase();renderExpenses()};
+  window.toTwd = function(a,c){return c==='KRW'?Number(a||0)*window.rate:Number(a||0)};
+  window.toKrw = function(a,c){return c==='KRW'?Number(a||0):Number(a||0)/window.rate};
+  window.moneyPair = function(a,c){return `≈ ${Math.round(toTwd(a,c)).toLocaleString()} TWD / ${Math.round(toKrw(a,c)).toLocaleString()} KRW`};
+  window.renderSplit = function(){
+    const fundT=window.splitData.fund.reduce((s,x)=>s+toTwd(x.a,x.c),0);let h=`<div class="card"><h3>1. 公基金</h3><div class="summary"><div class="sum"><small>總計 TWD</small><b>${Math.round(fundT).toLocaleString()}</b></div><div class="sum"><small>總計 KRW</small><b>${Math.round(fundT/window.rate).toLocaleString()}</b></div></div>`;
+    window.splitData.fund.forEach((x,i)=>h+=`<div class="person"><span class="avatar" style="background:${window.colors[i]}">${x.p}</span><b>${x.p}</b><input type="number" value="${x.a}" onchange="updateFund(${i},this.value)"><select onchange="updateFundC(${i},this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select><small class="muted">${moneyPair(x.a,x.c)}</small></div>`);
+    h+=`</div><div class="card"><h3>2. 行程等金額（可調整）</h3><p class="muted">每筆可選台幣／韓幣；每人的分攤也能各自調整。總額會同時換算成 TWD 與 KRW。</p><button class="btn light small" onclick="addSplitItem()">＋新增一筆</button>`;
+    let itemT=0;
+    window.splitData.items.forEach((x,i)=>{const shares=x.parts.map((v,j)=>toTwd(v,(x.partCurrencies||[])[j]||'TWD'));const shareT=shares.reduce((a,b)=>a+b,0);itemT+=shareT;h+=`<div class="accord"><button onclick="toggleAcc(this)">📌 ${escapeHtml(x.name||'未命名支出')}｜總分攤 ${Math.round(shareT).toLocaleString()} TWD / ${Math.round(shareT/window.rate).toLocaleString()} KRW</button><div class="accord-body"><div class="field"><input value="${escapeHtml(x.name)}" placeholder="內容／行程" onchange="updateItem(${i},'name',this.value)"><input type="number" value="${x.total||0}" placeholder="原始總額" onchange="updateItem(${i},'total',this.value)"><select onchange="updateItem(${i},'c',this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select></div><div class="muted" style="margin:7px 0">原始總額：${Number(x.total||0).toLocaleString()} ${x.c}｜${moneyPair(x.total,x.c)}</div>${people.map((p,j)=>{const pc=(x.partCurrencies||[])[j]||'TWD';return `<div class="person"><span class="avatar" style="background:${window.colors[j]}">${p}</span><b>${p}</b><input type="number" value="${x.parts[j]||0}" onchange="updatePart(${i},${j},this.value)"><select onchange="updatePartC(${i},${j},this.value)"><option ${pc==='TWD'?'selected':''}>TWD</option><option${pc==='KRW'?'selected':''}>KRW</option></select><small class="muted">${moneyPair(x.parts[j]||0,pc)}</small></div>`}).join('')}<div class="summary"><div class="sum"><small>本筆分攤合計 TWD</small><b>${Math.round(shareT).toLocaleString()}</b></div><div class="sum"><small>本筆分攤合計 KRW</small><b>${Math.round(shareT/window.rate).toLocaleString()}</b></div></div><button class="btn danger small" onclick="deleteItem(${i})">刪除</button></div></div>`});
+    h+=`<div class="summary"><div class="sum"><small>所有行程分攤 TWD</small><b>${Math.round(itemT).toLocaleString()}</b></div><div class="sum"><small>所有行程分攤 KRW</small><b>${Math.round(itemT/window.rate).toLocaleString()}</b></div></div></div>`;
+    h+=`<div class="card"><h3>3. 已墊付／付款紀錄</h3><p class="muted">不再預設「誰 → 誰」。只記錄「誰付款、內容、付款多少」，台幣／韓幣都可選。</p><button class="btn light small" onclick="addPrepaid()">＋新增一筆</button>`;
+    let preT=0;window.splitData.prepaid.forEach((x,i)=>{preT+=toTwd(x.amount,x.c);h+=`<div class="accord"><button onclick="toggleAcc(this)">💳 ${escapeHtml(x.payer||'誰')}｜${escapeHtml(x.desc||'未填內容')}｜${Number(x.amount||0).toLocaleString()} ${x.c}</button><div class="accord-body"><div class="field"><select onchange="updatePre(${i},'payer',this.value)">${people.map(p=>`<option ${p===x.payer?'selected':''}>${p}</option>`).join('')}</select><input value="${escapeHtml(x.desc||'')}" placeholder="內容是什麼？" onchange="updatePre(${i},'desc',this.value)"></div><div class="field"><input type="number" value="${x.amount||0}" placeholder="付款多少" onchange="updatePre(${i},'amount',this.value)"><select onchange="updatePre(${i},'c',this.value)"><option ${x.c==='TWD'?'selected':''}>TWD</option><option ${x.c==='KRW'?'selected':''}>KRW</option></select><button class="btn danger small" onclick="deletePre(${i})">刪除</button></div><div class="muted">${moneyPair(x.amount,x.c)}</div></div></div>`});
+    h+=`<div class="summary"><div class="sum"><small>已墊付合計 TWD</small><b>${Math.round(preT).toLocaleString()}</b></div><div class="sum"><small>已墊付合計 KRW</small><b>${Math.round(preT/window.rate).toLocaleString()}</b></div></div></div>`;
+    document.getElementById('splitContent').innerHTML=h;
+  };
+  window.saveSplit = function(){window.saveToFirebase();renderSplit();toast('分帳已儲存')};
+  window.updateFund = function(i,v){window.splitData.fund[i].a=Number(v);saveSplit()};
+  window.updateFundC = function(i,v){window.splitData.fund[i].c=v;saveSplit()};
+  window.addSplitItem = function(){window.splitData.items.push({name:'新支出',total:0,c:'TWD',parts:[0,0,0,0],partCurrencies:['TWD','TWD','TWD','TWD']});saveSplit()};
+  window.updateItem = function(i,k,v){window.splitData.items[i][k]=k==='total'?Number(v):v;saveSplit()};
+  window.updatePart = function(i,j,v){window.splitData.items[i].parts[j]=Number(v);saveSplit()};
+  window.updatePartC = function(i,j,v){window.splitData.items[i].partCurrencies[j]=v;saveSplit()};
+  window.deleteItem = function(i){window.splitData.items.splice(i,1);saveSplit()};
+  window.addPrepaid = function(){window.splitData.prepaid.push({payer:'瑾',desc:'',amount:0,c:'TWD'});saveSplit()};
+  window.updatePre = function(i,k,v){window.splitData.prepaid[i][k]=k==='amount'?Number(v):v;saveSplit()};
+  window.deletePre = function(i){window.splitData.prepaid.splice(i,1);saveSplit()};
+  window.toggleAcc = function(btn){let b=btn.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none'};
+  window.calcRate = function(){window.rate=parseFloat(document.getElementById('rateValue').value)||0.0235;localStorage.setItem(RATE_KEY,window.rate);document.getElementById('rateTwd').value=((parseFloat(document.getElementById('rateKrw').value)||0)*window.rate).toFixed(0)+' TWD'};
+
+  document.getElementById('rateValue').value=window.rate;
+  calcRate();
+  renderDays();
+  renderExpenses();
+  renderSplit();
 </script>
 </body>
 </html>
